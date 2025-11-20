@@ -447,8 +447,9 @@ function showModal(item, profile) {
   // Returns true if ID contains only digits, false if it has letters
   const isNumericId = /^\d+$/.test(item.id.trim());
   
-  // Determine grid columns based on visibility of Leave box
-  const gridCols = isNumericId ? 'grid-cols-3' : 'grid-cols-2';
+  // Determine grid columns based on visibility of Leave/Home box
+  // If not numeric, we only show 1 column (Info)
+  const gridCols = isNumericId ? 'grid-cols-3' : 'grid-cols-1';
 
   let modalHTML = `
             <div class="relative">
@@ -499,12 +500,13 @@ function showModal(item, profile) {
                         )}</p>
                         <p class="text-[10px] font-bold text-blue-800 uppercase tracking-wide mt-0.5">ចេញក្រៅ</p>
                     </div>
+                    ${ isNumericId ? `
                       <div class="bg-purple-50 p-2 rounded-xl border border-purple-100 flex flex-col justify-center">
                         <p class="font-bold text-lg text-purple-600">${toKhmerNumber(
                           homeRecords.length
                         )}</p>
                         <p class="text-[10px] font-bold text-purple-800 uppercase tracking-wide mt-0.5">ទៅផ្ទះ</p>
-                    </div>
+                    </div>` : '' }
                 </div>
             </div>
 
@@ -591,7 +593,8 @@ function showModal(item, profile) {
     modalHTML += `</div></div>`;
   }
 
-  if (homeRecords.length > 0) {
+  // **CONDITIONALLY SHOW HOME HISTORY**
+  if (homeRecords.length > 0 && isNumericId) {
     modalHTML += `<div><h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2 uppercase tracking-wide"><span class="w-1.5 h-4 bg-purple-500 rounded-full"></span>ប្រវត្តិការទៅផ្ទះ</h3><div class="space-y-2.5">`;
     homeRecords.forEach((record) => {
       const durationText = record.duration
@@ -640,7 +643,7 @@ function showModal(item, profile) {
   if (
     (leaveRecords.length === 0 || !isNumericId) &&
     infoRecords.length === 0 &&
-    homeRecords.length === 0
+    (homeRecords.length === 0 || !isNumericId)
   ) {
     modalHTML += `<div class="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200"><p class="text-slate-400 text-sm">គ្មានកំណត់ត្រាលម្អិតសម្រាប់ខែនេះ</p></div>`;
   }
@@ -1116,10 +1119,10 @@ function renderCombinedView(filteredData) {
                      ${ isNumericId ? `
                      <div class="flex-1 min-w-[70px] text-xs font-bold bg-green-50 text-green-600 px-2 py-1 rounded-lg border border-green-100 text-center whitespace-nowrap">
                         សម្រាក: ${toKhmerNumber(summary.leaveCount)}
-                     </div>` : '' }
+                     </div>
                      <div class="flex-1 min-w-[70px] text-xs font-bold bg-purple-50 text-purple-600 px-2 py-1 rounded-lg border border-purple-100 text-center whitespace-nowrap">
                         ទៅផ្ទះ: ${toKhmerNumber(summary.homeCount)}
-                     </div>
+                     </div>` : '' }
                 </div>
             </div>
             
