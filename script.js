@@ -603,6 +603,11 @@ function showModal(item, profile) {
         ? `${toKhmerNumber(record.duration)} ថ្ងៃ`
         : "N/A";
 
+      // FIX FOR HOME DATE DISPLAY
+      // Home records don't have item.date/item.dateEnd. They have item.dateOut/item.dateIn
+      const startDate = record.dateOut;
+      const endDate = record.dateIn;
+
       modalHTML += `
                     <div class="bg-slate-50 p-3 rounded-xl text-sm border border-slate-100">
                         <div class="flex justify-between items-start mb-2">
@@ -610,7 +615,7 @@ function showModal(item, profile) {
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-slate-500 text-xs min-w-[25px]">ចេញ:</span>
                                     <span class="font-semibold text-slate-800">${toKhmerNumber(
-                                      record.dateOut
+                                      startDate
                                     )}</span>
                                     <span class="bg-white px-1.5 py-0.5 rounded border border-purple-200 text-purple-600 font-bold text-xs shadow-sm">${toKhmerNumber(
                                       record.timeOut
@@ -619,7 +624,7 @@ function showModal(item, profile) {
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-slate-500 text-xs min-w-[25px]">ចូល:</span>
                                     <span class="font-semibold text-slate-800">${toKhmerNumber(
-                                      record.dateIn
+                                      endDate
                                     )}</span>
                                     <span class="bg-white px-1.5 py-0.5 rounded border border-purple-200 text-purple-600 font-bold text-xs shadow-sm">${toKhmerNumber(
                                       record.timeIn
@@ -1021,11 +1026,16 @@ function renderStandardView(filteredData) {
           singleDayKeywords.some((keyword) =>
             (item.duration || "").includes(keyword)
           );
+
+        // NEW LOGIC HERE: Determine date fields based on item type
+        const startDate = item.type === "home" ? item.dateOut : item.date;
+        const endDate = item.type === "home" ? item.dateIn : item.dateEnd;
+
         const dateDisplay =
-          isSingleDay || !item.dateEnd
-            ? `<span>កាលបរិច្ឆេទ: ${toKhmerNumber(item.date)}</span>`
-            : `<span>${toKhmerNumber(item.date)} - ${toKhmerNumber(
-                item.dateEnd
+          isSingleDay || !endDate
+            ? `<span>កាលបរិច្ឆេទ: ${toKhmerNumber(startDate)}</span>`
+            : `<span>${toKhmerNumber(startDate)} - ${toKhmerNumber(
+                endDate
               )}</span>`;
         contentHTML += `
                                 <div class="flex justify-between text-xs text-slate-500 font-medium">
@@ -1203,12 +1213,14 @@ function populateDateFilters() {
 function switchTab(tabName) {
   currentTab = tabName;
   currentPage = 1;
-  // --- បន្ថែមថ្មី៖ លុបអក្សរក្នុងប្រអប់ស្វែងរកពេលប្តូរ Tab ---
+
+  // --- ADDED: Clear Search Input on Tab Switch ---
   const searchInput = document.getElementById("searchInput");
   if (searchInput) {
-    searchInput.value = ""; // លុបអក្សរចោល
+    searchInput.value = "";
   }
-  // -----------------------------------------------------
+  // ----------------------------------------------
+
   render();
 }
 
