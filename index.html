@@ -252,6 +252,34 @@
         </div>
 
         <div id="data-view">
+          <div class="mb-4 sticky top-0 z-30 bg-[#f8fafc] pt-1 pb-2 -mx-2 px-2">
+            <div class="relative shadow-sm group">
+              <div
+                class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"
+              >
+                <svg
+                  class="h-5 w-5 text-slate-400 group-focus-within:text-primary-500 transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  ></path>
+                </svg>
+              </div>
+              <input
+                type="text"
+                id="searchInput"
+                class="block w-full pl-11 p-3.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all placeholder-slate-400"
+                placeholder="ស្វែងរកឈ្មោះ ឬ អត្តលេខ..."
+              />
+            </div>
+          </div>
+
           <div class="flex justify-between items-center mb-4 px-1">
             <div
               id="summaryText"
@@ -382,37 +410,6 @@
                   តម្រងទិន្នន័យ
                 </h3>
                 <div class="space-y-5 flex-grow">
-                  <div>
-                    <label
-                      class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1"
-                      >ស្វែងរក</label
-                    >
-                    <div class="relative group">
-                      <div
-                        class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"
-                      >
-                        <svg
-                          class="h-5 w-5 text-slate-400 group-focus-within:text-primary-500 transition-colors"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          ></path>
-                        </svg>
-                      </div>
-                      <input
-                        type="text"
-                        id="searchInput"
-                        class="block w-full pl-11 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 focus:bg-white outline-none transition-all placeholder-slate-400"
-                        placeholder="ឈ្មោះ ឬ អត្តលេខ..."
-                      />
-                    </div>
-                  </div>
                   <div class="grid grid-cols-2 gap-3">
                     <div>
                       <label
@@ -853,4 +850,3 @@
     <script src="script.js"></script>
   </body>
 </html>
-
