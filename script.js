@@ -6,11 +6,14 @@ let allData = { info: [], leave: [], home: [], combined: [] };
 let profileData = {};
 let currentTab = "info";
 let currentPage = 1;
-let cardsPerPage = 14;
+let cardsPerPage = 24; // បង្ហាញ 24 កាតក្នុងមួយទំព័រ
 let filterDate = null;
 let touchStartX = 0;
 let touchEndX = 0;
+
+// State for Modals
 let notReturnedType = "info";
+let summaryType = "leave";
 
 // ==========================================
 // 2. DOM ELEMENTS
@@ -58,6 +61,7 @@ const changeApiKeyButton = document.getElementById("changeApiKeyButton");
 // 3. HELPER FUNCTIONS
 // ==========================================
 
+// --- UI Helpers ---
 function hideModal() {
   modalContainer.classList.add("hidden");
   modalContainer.classList.remove("flex");
@@ -160,7 +164,6 @@ function loadExportLibraries() {
 
 // --- EXPORT DATA PREPARATION ---
 function getExportData() {
-  // 1. Get filter values
   const exportType = document.getElementById("exportTypeSelector")
     ? document.getElementById("exportTypeSelector").value
     : "all";
@@ -178,9 +181,7 @@ function getExportData() {
     end.setHours(23, 59, 59, 999);
   }
 
-  // 2. Filter from ALL Combined Data
   let data = allData.combined.filter((item) => {
-    // Date Filter
     const itemDateStr = item.dateOut || item.date;
     if (!itemDateStr) return false;
     const itemDate = parseDateForSort(itemDateStr);
@@ -190,21 +191,17 @@ function getExportData() {
     if (start && end) {
       dateMatch = itemDate >= start && itemDate <= end;
     } else {
-      // If no date selected, default to current filter (Year/Month)
       dateMatch =
         itemDate.getFullYear() == yearFilter.value &&
         itemDate.getMonth() + 1 == monthFilter.value;
     }
 
-    // Type Filter
     let typeMatch = true;
     if (exportType !== "all") {
       typeMatch = item.type === exportType;
     }
 
-    // ID Numeric Check (Exclude admin/test IDs if needed, based on previous logic)
     const isNumericId = /^\d+$/.test(item.id.trim());
-    // If type is leave or home, verify ID is numeric
     if ((item.type === "leave" || item.type === "home") && !isNumericId) {
       return false;
     }
@@ -212,23 +209,17 @@ function getExportData() {
     return dateMatch && typeMatch;
   });
 
-  // 3. SORTING: Name (Asc) then Date (Desc)
   data.sort((a, b) => {
-    // Sort by Name first
     const nameA = a.name || "";
     const nameB = b.name || "";
     const nameCompare = nameA.localeCompare(nameB, "km");
-
     if (nameCompare !== 0) return nameCompare;
-
-    // If names are equal, sort by Date (Descending - Newest first)
     return b.sortDate - a.sortDate;
   });
 
   return data;
 }
 
-// --- EXPORT LOGIC ---
 function exportData(type) {
   const data = getExportData();
   if (data.length === 0) {
@@ -260,7 +251,6 @@ function exportData(type) {
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `Report_${new Date().toISOString().split("T")[0]}.xlsx`);
   } else if (type === "pdf") {
-    // USE NATIVE PRINT FOR PERFECT KHMER FONT
     const printWindow = window.open("", "", "height=800,width=1200");
     if (!printWindow) {
       alert("សូមអនុញ្ញាត Pop-ups ដើម្បីទាញយក PDF");
@@ -277,9 +267,7 @@ function exportData(type) {
           : item.type === "leave"
           ? "ឈប់សម្រាក"
           : "ទៅផ្ទះ";
-      let typeClass = item.type; // info, leave, home
-
-      // Visual separation for different employees
+      let typeClass = item.type;
       let rowStyle = "";
       if (currentName !== "" && currentName !== item.name) {
         rowStyle = "border-top: 2px solid #cbd5e1;";
@@ -345,15 +333,11 @@ function exportData(type) {
                     </tbody>
                 </table>
                 <script>
-                    window.onload = function() {
-                        window.print();
-                        // Optional: window.close(); user might want to keep it open
-                    }
+                    window.onload = function() { window.print(); }
                 </script>
             </body>
             </html>
         `;
-
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   }
@@ -461,8 +445,10 @@ function checkNotReturnedStatus() {
 }
 
 function getFilteredData() {
-  // Standard filtering for display (not export)
-  const dataToFilter = allData[currentTab] || [];
+  let sourceTab = currentTab;
+  if (sourceTab === "settings") sourceTab = "combined";
+
+  const dataToFilter = allData[sourceTab] || [];
   const searchTerm = searchInput.value.toLowerCase();
   const selectedYear = yearFilter.value;
   const selectedMonth = monthFilter.value;
@@ -539,29 +525,18 @@ function updateSettingsIcon() {
 function renderSettingsPage() {
   const settingsContainer = settingsPage.querySelector(".space-y-5.flex-grow");
   if (settingsContainer && !document.getElementById("export-section")) {
-    const exportHTML = `
-            <div id="export-section" class="border-t border-dashed border-slate-200 pt-4 mt-2">
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-3 ml-1">ទាញយករបាយការណ៍</label>
-                <div class="mb-3">
-                    <select id="exportTypeSelector" class="block w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all">
-                        <option value="all">បង្ហាញទាំងអស់ (All)</option>
-                        <option value="info">ច្បាប់ចេញក្រៅ (Out)</option>
-                        <option value="leave">ច្បាប់ឈប់សម្រាក (Leave)</option>
-                        <option value="home">ច្បាប់ទៅផ្ទះ (Home)</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="exportData('excel')" class="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 font-medium py-2.5 px-4 rounded-xl transition">
-                        Excel
-                    </button>
-                    <button onclick="exportData('pdf')" class="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-medium py-2.5 px-4 rounded-xl transition">
-                        PDF (បោះពុម្ព)
-                    </button>
-                </div>
-            </div>
-        `;
+    const exportHTML = `<div id="export-section" class="border-t border-dashed border-slate-200 pt-4 mt-2"><label class="block text-xs font-bold text-slate-400 uppercase mb-3 ml-1">ទាញយករបាយការណ៍</label><div class="mb-3"><select id="exportTypeSelector" class="block w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"><option value="all">បង្ហាញទាំងអស់ (All)</option><option value="info">ច្បាប់ចេញក្រៅ (Out)</option><option value="leave">ច្បាប់ឈប់សម្រាក (Leave)</option><option value="home">ច្បាប់ទៅផ្ទះ (Home)</option></select></div><div class="grid grid-cols-2 gap-3"><button onclick="exportData('excel')" class="flex items-center justify-center gap-2 bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 font-medium py-2.5 px-4 rounded-xl transition">Excel</button><button onclick="exportData('pdf')" class="flex items-center justify-center gap-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-medium py-2.5 px-4 rounded-xl transition">PDF (បោះពុម្ព)</button></div></div>`;
     settingsContainer.insertAdjacentHTML("beforeend", exportHTML);
   }
+
+  const settingsNotReturnedBtn = document.getElementById("notReturnedButton");
+  if (settingsNotReturnedBtn)
+    settingsNotReturnedBtn.onclick = () => {
+      switchNotReturnedTab("info");
+    };
+  const settingsSummaryBtn = document.getElementById("summaryButton");
+  if (settingsSummaryBtn)
+    settingsSummaryBtn.onclick = () => showSummaryModal(null);
 }
 
 function render() {
@@ -636,6 +611,11 @@ function renderStandardView(filteredData) {
               endDate
             )}</span>`;
 
+      let durationDisplay = toKhmerNumber(item.duration);
+      if (item.type === "home" && item.duration) {
+        durationDisplay += " ថ្ងៃ";
+      }
+
       let contentHTML = `
             <div class="flex-shrink-0"><img src="${
               profile.photo || placeholderImg
@@ -644,9 +624,7 @@ function renderStandardView(filteredData) {
         item.name || "គ្មានឈ្មោះ"
       }</h3><p class="text-xs text-slate-400 font-mono mt-0.5">${toKhmerNumber(
         item.id
-      )}</p></div><span class="text-[10px] font-bold ${badgeBg} px-2.5 py-1 rounded-lg flex-shrink-0 whitespace-nowrap border border-opacity-20 border-current">${toKhmerNumber(
-        item.duration
-      )}</span></div><p class="text-xs text-slate-500 mb-2 truncate font-medium">${
+      )}</p></div><span class="text-[10px] font-bold ${badgeBg} px-2.5 py-1 rounded-lg flex-shrink-0 whitespace-nowrap border border-opacity-20 border-current">${durationDisplay}</span></div><p class="text-xs text-slate-500 mb-2 truncate font-medium">${
         profile.department || item.class || "គ្មានផ្នែក"
       }</p><div class="text-xs text-slate-600 border-t border-dashed border-slate-200 pt-2 mt-2"><p class="mb-1 truncate"><span class="text-slate-400">មូលហេតុ:</span> ${
         item.reason || "N/A"
@@ -700,33 +678,53 @@ function renderCombinedView(filteredData) {
       ).charAt(0)}`;
       const card = document.createElement("div");
       card.className =
-        "card bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-start gap-4 cursor-pointer hover:shadow-md transition-all duration-200";
+        "card bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1";
       card.style.animationDelay = `${index * 0.03}s`;
       const originalItem = filteredData.find((i) => i.id === summary.id);
       card.onclick = () => showModal(originalItem, summary.profile);
       const isNumericId = /^\d+$/.test(summary.id.trim());
 
+      // Icons
+      const iconLeave = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`;
+      const iconOut = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>`;
+      const iconHome = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>`;
+
+      // Build Stats HTML (Leave -> Out -> Home)
+      let statsHTML = `<div class="flex items-center gap-3">`;
+      if (isNumericId)
+        statsHTML += `<div class="flex items-center gap-1 text-green-600" title="ឈប់សម្រាក">${iconLeave} <span class="font-bold text-xs">${toKhmerNumber(
+          summary.leaveCount
+        )}</span></div>`;
+      statsHTML += `<div class="flex items-center gap-1 text-blue-600" title="ចេញក្រៅ">${iconOut} <span class="font-bold text-xs">${toKhmerNumber(
+        summary.infoCount
+      )}</span></div>`;
+      if (isNumericId)
+        statsHTML += `<div class="flex items-center gap-1 text-purple-600" title="ទៅផ្ទះ">${iconHome} <span class="font-bold text-xs">${toKhmerNumber(
+          summary.homeCount
+        )}</span></div>`;
+      statsHTML += `</div>`;
+
       card.innerHTML = `
             <img src="${
               summary.profile.photo || placeholderImg
-            }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm flex-shrink-0">
-            <div class="flex-grow min-w-0 flex flex-col justify-between h-full"><div><h3 class="font-bold text-base text-slate-800 truncate">${
-              summary.name || "គ្មានឈ្មោះ"
-            }</h3><p class="text-xs text-slate-400 font-mono">${toKhmerNumber(
-        summary.id
-      )}</p><p class="text-sm text-slate-500 truncate mb-1">${
-        summary.profile.department || "គ្មានផ្នែក"
-      }</p></div><div class="flex flex-wrap gap-2 mt-2 w-full"><div class="flex-1 min-w-[70px] text-xs font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded-lg border border-blue-100 text-center whitespace-nowrap">ចេញ: ${toKhmerNumber(
-        summary.infoCount
-      )}</div>${
-        isNumericId
-          ? `<div class="flex-1 min-w-[70px] text-xs font-bold bg-green-50 text-green-600 px-2 py-1 rounded-lg border border-green-100 text-center whitespace-nowrap">សម្រាក: ${toKhmerNumber(
-              summary.leaveCount
-            )}</div><div class="flex-1 min-w-[70px] text-xs font-bold bg-purple-50 text-purple-600 px-2 py-1 rounded-lg border border-purple-100 text-center whitespace-nowrap">ទៅផ្ទះ: ${toKhmerNumber(
-              summary.homeCount
-            )}</div>`
-          : ""
-      }</div></div><div class="text-slate-300 self-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg></div>`;
+            }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm flex-shrink-0">
+            <div class="flex-grow min-w-0">
+                <div class="flex justify-between items-center mb-0.5">
+                    <h3 class="font-bold text-sm text-slate-800 truncate pr-2">${
+                      summary.name || "គ្មានឈ្មោះ"
+                    }</h3>
+                    ${statsHTML}
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-500">
+                    <span class="truncate font-medium max-w-[60%]">${
+                      summary.profile.department || "គ្មានផ្នែក"
+                    }</span>
+                    <span class="font-mono bg-slate-50 px-1.5 rounded text-[10px] border border-slate-100">${toKhmerNumber(
+                      summary.id
+                    )}</span>
+                </div>
+            </div>
+        `;
       dataContainer.appendChild(card);
     });
   }
@@ -755,7 +753,7 @@ function renderPagination(totalItems) {
 }
 
 // ==========================================
-// 6. MODALS
+// 6. MODALS (SHOW MODAL INCLUDED HERE)
 // ==========================================
 
 function showModal(item, profile) {
@@ -925,6 +923,274 @@ function showModal(item, profile) {
   modalContainer.classList.add("flex");
 }
 
+function showSummaryModal(summaryArray) {
+  // --- Updated Summary Logic with Tabs ---
+  let summaryList = summaryArray || [];
+  if (!summaryArray) {
+    let data = [];
+    // Filter data based on summaryType (leave or info)
+    if (summaryType === "leave") {
+      data = allData.leave.filter((item) => {
+        const itemDate = parseDateForSort(item.date);
+        return (
+          itemDate.getFullYear() == yearFilter.value &&
+          itemDate.getMonth() + 1 == monthFilter.value
+        );
+      });
+    } else {
+      data = allData.info.filter((item) => {
+        const itemDate = parseDateForSort(item.dateOut);
+        return (
+          itemDate.getFullYear() == yearFilter.value &&
+          itemDate.getMonth() + 1 == monthFilter.value
+        );
+      });
+    }
+
+    const summary = data.reduce((acc, item) => {
+      if (!acc[item.id])
+        acc[item.id] = { count: 0, days: 0, name: item.name, id: item.id };
+      acc[item.id].count++;
+      if (summaryType === "leave") {
+        const durationStr = item.duration || "";
+        if (
+          durationStr.includes("ព្រឹក") ||
+          durationStr.includes("រសៀល") ||
+          durationStr.includes("យប់")
+        )
+          acc[item.id].days += 0.5;
+        else {
+          const days = parseFloat(durationStr);
+          acc[item.id].days += isNaN(days) ? 1 : days;
+        }
+      }
+      return acc;
+    }, {});
+    summaryList = Object.values(summary).sort((a, b) => b.count - a.count); // Sort by Count
+  }
+
+  // Tabs Style
+  const tabClassActive =
+    "bg-green-100 text-green-700 border-green-200 font-bold shadow-sm";
+  const tabClassInactive =
+    "bg-white text-slate-500 border-slate-200 hover:bg-slate-50";
+
+  const leaveTabClass =
+    summaryType === "leave" ? tabClassActive : tabClassInactive;
+  const infoTabClass =
+    summaryType === "info"
+      ? tabClassActive.replace(/green/g, "blue")
+      : tabClassInactive;
+
+  let modalHTML = `
+        <div class="bg-green-50 p-5 border-b border-green-100 rounded-t-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-lg text-green-800">សរុបរបាយការណ៍ប្រចាំខែ</h2>
+                <button class="modal-close-btn text-green-400 hover:text-green-600 bg-white rounded-full p-1.5 transition shadow-sm">&times;</button>
+            </div>
+            <div class="flex gap-2 p-1 bg-white/50 rounded-xl border border-green-100">
+                 <button onclick="switchSummaryTab('leave')" class="flex-1 py-2 px-2 rounded-lg border text-xs transition ${leaveTabClass}">ច្បាប់ឈប់សម្រាក</button>
+                 <button onclick="switchSummaryTab('info')" class="flex-1 py-2 px-2 rounded-lg border text-xs transition ${infoTabClass}">ច្បាប់ចេញក្រៅ</button>
+            </div>
+        </div>
+        <div class="p-0 max-h-[70vh] overflow-y-auto">
+            <table class="w-full text-sm text-left text-slate-600">
+                <thead class="text-xs text-slate-500 uppercase bg-green-50/50 sticky top-0 shadow-sm z-10">
+                    <tr>
+                        <th scope="col" class="px-5 py-3.5">បុគ្គលិក</th>
+                        <th scope="col" class="px-5 py-3.5 text-center">ដង</th>
+                        ${
+                          summaryType === "leave"
+                            ? `<th scope="col" class="px-5 py-3.5 text-center">ថ្ងៃ</th>`
+                            : ""
+                        }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">`;
+
+  if (summaryList.length === 0)
+    modalHTML += `<tr><td colspan="3" class="text-center py-12 text-slate-400">គ្មានទិន្នន័យក្នុងខែនេះទេ។</td></tr>`;
+  else {
+    summaryList.forEach((emp) => {
+      const profile = profileData[emp.id.trim()] || { photo: "" };
+      const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(
+        emp.name || "?"
+      ).charAt(0)}`;
+
+      // Color logic for stats
+      const countColor =
+        summaryType === "leave" ? "text-slate-600" : "text-blue-600 font-bold";
+
+      modalHTML += `
+                <tr class="bg-white hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-3 font-medium text-slate-900">
+                        <div class="flex items-center gap-3">
+                            <img src="${
+                              profile.photo || placeholderImg
+                            }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-10 h-10 rounded-full object-cover border border-slate-100 shadow-sm">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-slate-700">${
+                                  emp.name
+                                }</span>
+                                <span class="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded-md w-fit mt-0.5 border border-slate-100">${toKhmerNumber(
+                                  emp.id
+                                )}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3 text-center font-medium ${countColor}">${toKhmerNumber(
+        emp.count
+      )}</td>
+                    ${
+                      summaryType === "leave"
+                        ? `<td class="px-5 py-3 text-center font-bold text-green-600 bg-green-50/30">${toKhmerNumber(
+                            emp.days
+                          )}</td>`
+                        : ""
+                    }
+                </tr>`;
+    });
+  }
+  modalHTML += "</tbody></table></div>";
+  modalContent.innerHTML = modalHTML;
+  modalContainer.classList.remove("hidden");
+  modalContainer.classList.add("flex");
+}
+
+function switchSummaryTab(type) {
+  summaryType = type;
+  showSummaryModal(null);
+}
+window.switchSummaryTab = switchSummaryTab;
+
+function showNotReturnedModal() {
+  const selectedYear = yearFilter.value;
+  const selectedMonth = monthFilter.value;
+  let notReturnedList = [];
+  let notReturnedHomeList = [];
+
+  // Get Data for both tabs to show counts
+  const infoList = allData.info.filter((item) => {
+    if (item.timeIn && item.timeIn.trim() !== "") return false;
+    const itemDate = parseDateForSort(item.dateOut);
+    return (
+      itemDate.getFullYear() == selectedYear &&
+      itemDate.getMonth() + 1 == selectedMonth
+    );
+  });
+
+  const homeList = allData.home.filter((item) => {
+    if (item.timeIn && item.timeIn.trim() !== "") return false;
+    const itemDate = parseDateForSort(item.dateOut);
+    return (
+      itemDate.getFullYear() == selectedYear &&
+      itemDate.getMonth() + 1 == selectedMonth
+    );
+  });
+
+  // Determine which list to show based on active tab
+  if (notReturnedType === "info") {
+    notReturnedList = infoList;
+  } else {
+    notReturnedList = homeList;
+  }
+
+  const tabClassActive =
+    "bg-orange-100 text-orange-700 border-orange-200 shadow-sm font-bold";
+  const tabClassInactive =
+    "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700";
+  const infoTabClass =
+    notReturnedType === "info" ? tabClassActive : tabClassInactive;
+  const homeTabClass =
+    notReturnedType === "home" ? tabClassActive : tabClassInactive;
+
+  let modalHTML = `
+    <div class="bg-orange-50 p-5 border-b border-orange-100 rounded-t-2xl">
+        <div class="flex justify-between items-center mb-4">
+             <h2 class="font-bold text-lg text-orange-800">អ្នកមិនទាន់ចូលមកវិញ</h2>
+             <button class="modal-close-btn text-orange-400 hover:text-orange-600 bg-white rounded-full p-1.5 transition shadow-sm">&times;</button>
+        </div>
+        <div class="flex gap-2 p-1 bg-white/50 rounded-xl border border-orange-100">
+            <button onclick="switchNotReturnedTab('info')" class="flex-1 py-2 px-2 rounded-lg border text-xs transition relative ${infoTabClass}">
+                ច្បាប់ចេញក្រៅ
+                <span class="ml-1 bg-white text-orange-600 px-1.5 py-0.5 rounded-full text-[9px] border border-orange-100 shadow-sm">${toKhmerNumber(
+                  infoList.length
+                )}</span>
+            </button>
+            <button onclick="switchNotReturnedTab('home')" class="flex-1 py-2 px-2 rounded-lg border text-xs transition relative ${homeTabClass}">
+                ច្បាប់ទៅផ្ទះ
+                <span class="ml-1 bg-white text-orange-600 px-1.5 py-0.5 rounded-full text-[9px] border border-orange-100 shadow-sm">${toKhmerNumber(
+                  homeList.length
+                )}</span>
+            </button>
+        </div>
+    </div>
+    <div class="p-4 max-h-[70vh] overflow-y-auto space-y-3 bg-slate-50/50">
+  `;
+
+  if (notReturnedList.length === 0) {
+    modalHTML += `<div class="text-center py-12"><div class="text-orange-200 mb-2"><svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><p class="text-slate-500 font-medium">ល្អណាស់! គ្មានបុគ្គលិកដែលមិនទាន់ចូលមកវិញទេ។</p></div>`;
+  } else {
+    notReturnedList.forEach((item) => {
+      const profile = profileData[item.id.trim()] || {
+        photo: "",
+        department: "",
+      };
+      const placeholderImg = `https://placehold.co/60x60/e2e8f0/64748b?text=${(
+        item.name || "?"
+      ).charAt(0)}`;
+      const dateOutStr = formatDateToKhmer(item.dateOut);
+      const duration = item.duration
+        ? `រយៈពេល: <span class="font-bold text-orange-600">${toKhmerNumber(
+            item.duration
+          )}${notReturnedType === "home" ? " ថ្ងៃ" : ""}</span>`
+        : "";
+      const reason = item.reason
+        ? `<p class="text-xs text-slate-500 truncate mt-1 border-t border-dashed border-orange-100 pt-1">មូលហេតុ: ${item.reason}</p>`
+        : "";
+
+      modalHTML += `
+        <div class="bg-white border border-orange-100 p-3.5 rounded-xl shadow-sm flex items-start gap-3.5 hover:shadow-md transition-shadow">
+            <img src="${
+              profile.photo || placeholderImg
+            }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-orange-100 shadow-sm">
+            <div class="flex-grow min-w-0">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${
+                          item.name
+                        }</p>
+                        <p class="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded w-fit mt-0.5">${toKhmerNumber(
+                          item.id
+                        )}</p>
+                    </div>
+                    <div class="text-[10px] bg-orange-50 text-orange-700 px-2 py-1 rounded-lg border border-orange-100">
+                       ${toKhmerNumber(item.timeOut)}
+                    </div>
+                </div>
+                
+                <div class="text-xs text-slate-600 mt-2 space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>
+                        <span>ចេញ: ${dateOutStr}</span>
+                    </div>
+                    ${
+                      duration
+                        ? `<div class="flex items-center gap-2"><span class="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>${duration}</div>`
+                        : ""
+                    }
+                </div>
+                ${reason}
+            </div>
+        </div>`;
+    });
+  }
+  modalHTML += "</div>";
+  modalContent.innerHTML = modalHTML;
+  modalContainer.classList.remove("hidden");
+  modalContainer.classList.add("flex");
+}
+
 function switchNotReturnedTab(type) {
   notReturnedType = type;
   showNotReturnedModal();
@@ -1021,7 +1287,7 @@ function updateMobileNavState(tabName) {
 }
 
 function updateCardsPerPage() {
-  cardsPerPage = window.innerWidth >= 1024 ? 14 : 14;
+  cardsPerPage = window.innerWidth >= 1024 ? 14 : 24;
 }
 function handleSwipeGesture() {
   if (currentTab === "settings") return;
