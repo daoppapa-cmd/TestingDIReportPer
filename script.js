@@ -271,9 +271,7 @@ function showNotReturnedModal() {
                           profile.photo || placeholderImg
                         }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-orange-100 shadow-sm">
                         <div class="flex-grow">
-                            <p class="font-bold text-slate-800">${
-                              item.name
-                            }</p>
+                            <p class="font-bold text-slate-800">${item.name}</p>
                             <p class="text-xs text-slate-400 mb-1 font-mono">${toKhmerNumber(
                               item.id
                             )}</p>
@@ -379,31 +377,27 @@ function showModal(item, profile) {
   const personId = item.id;
   const selectedYear = yearFilter.value;
   const selectedMonth = monthFilter.value;
-  const start = startDateFilter.value
-    ? new Date(startDateFilter.value)
-    : null;
+  const start = startDateFilter.value ? new Date(startDateFilter.value) : null;
   const end = endDateFilter.value ? new Date(endDateFilter.value) : null;
   if (start) start.setHours(0, 0, 0, 0);
   if (end) end.setHours(23, 59, 59, 999);
 
-  const allRecordsForPersonThisMonth = allData.combined.filter(
-    (record) => {
-      if (record.id !== personId) return false;
-      const itemDateStr = record.dateOut || record.date;
-      const itemDate = parseDateForSort(itemDateStr);
-      itemDate.setHours(12, 0, 0, 0);
-      if (start && end) return itemDate >= start && itemDate <= end;
-      else if (filterDate) {
-        const filterD = new Date(filterDate);
-        filterD.setHours(12, 0, 0, 0);
-        return itemDate.getTime() === filterD.getTime();
-      } else
-        return (
-          itemDate.getFullYear() == selectedYear &&
-          itemDate.getMonth() + 1 == selectedMonth
-        );
-    }
-  );
+  const allRecordsForPersonThisMonth = allData.combined.filter((record) => {
+    if (record.id !== personId) return false;
+    const itemDateStr = record.dateOut || record.date;
+    const itemDate = parseDateForSort(itemDateStr);
+    itemDate.setHours(12, 0, 0, 0);
+    if (start && end) return itemDate >= start && itemDate <= end;
+    else if (filterDate) {
+      const filterD = new Date(filterDate);
+      filterD.setHours(12, 0, 0, 0);
+      return itemDate.getTime() === filterD.getTime();
+    } else
+      return (
+        itemDate.getFullYear() == selectedYear &&
+        itemDate.getMonth() + 1 == selectedMonth
+      );
+  });
 
   const leaveRecords = allRecordsForPersonThisMonth.filter(
     (r) => r.type === "leave"
@@ -446,10 +440,10 @@ function showModal(item, profile) {
   // **CHECK IF ID IS NUMERIC**
   // Returns true if ID contains only digits, false if it has letters
   const isNumericId = /^\d+$/.test(item.id.trim());
-  
+
   // Determine grid columns based on visibility of Leave/Home box
   // If not numeric, we only show 1 column (Info)
-  const gridCols = isNumericId ? 'grid-cols-3' : 'grid-cols-1';
+  const gridCols = isNumericId ? "grid-cols-3" : "grid-cols-1";
 
   let modalHTML = `
             <div class="relative">
@@ -484,7 +478,9 @@ function showModal(item, profile) {
             
             <div class="px-6 mb-6">
                 <div class="grid ${gridCols} gap-2 text-center">
-                    ${ isNumericId ? `
+                    ${
+                      isNumericId
+                        ? `
                     <div class="bg-green-50 p-2 rounded-xl border border-green-100">
                         <p class="font-bold text-lg text-green-600">${toKhmerNumber(
                           leaveRecords.length
@@ -493,20 +489,26 @@ function showModal(item, profile) {
                          <span class="text-[9px] bg-white text-green-700 px-1.5 py-0.5 rounded-md mt-1 inline-block border border-green-100 font-semibold shadow-sm">${toKhmerNumber(
                            totalDays
                          )} ថ្ងៃ</span>
-                    </div>` : '' }
+                    </div>`
+                        : ""
+                    }
                     <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 flex flex-col justify-center">
                         <p class="font-bold text-lg text-blue-600">${toKhmerNumber(
                           infoRecords.length
                         )}</p>
                         <p class="text-[10px] font-bold text-blue-800 uppercase tracking-wide mt-0.5">ចេញក្រៅ</p>
                     </div>
-                    ${ isNumericId ? `
+                    ${
+                      isNumericId
+                        ? `
                       <div class="bg-purple-50 p-2 rounded-xl border border-purple-100 flex flex-col justify-center">
                         <p class="font-bold text-lg text-purple-600">${toKhmerNumber(
                           homeRecords.length
                         )}</p>
                         <p class="text-[10px] font-bold text-purple-800 uppercase tracking-wide mt-0.5">ទៅផ្ទះ</p>
-                    </div>` : '' }
+                    </div>`
+                        : ""
+                    }
                 </div>
             </div>
 
@@ -865,9 +867,7 @@ function getFilteredData() {
   const searchTerm = searchInput.value.toLowerCase();
   const selectedYear = yearFilter.value;
   const selectedMonth = monthFilter.value;
-  const start = startDateFilter.value
-    ? new Date(startDateFilter.value)
-    : null;
+  const start = startDateFilter.value ? new Date(startDateFilter.value) : null;
   const end = endDateFilter.value ? new Date(endDateFilter.value) : null;
   if (start) start.setHours(0, 0, 0, 0);
   if (end) end.setHours(23, 59, 59, 999);
@@ -1015,12 +1015,7 @@ function renderStandardView(filteredData) {
                             </div>
                         </div>`;
       } else {
-        const singleDayKeywords = [
-          "មួយព្រឹក",
-          "មួយរសៀល",
-          "ពេលយប់",
-          "មួយថ្ងៃ",
-        ];
+        const singleDayKeywords = ["មួយព្រឹក", "មួយរសៀល", "ពេលយប់", "មួយថ្ងៃ"];
         const isSingleDay =
           !item.duration ||
           singleDayKeywords.some((keyword) =>
@@ -1068,9 +1063,7 @@ function renderCombinedView(filteredData) {
   }, {});
 
   const summaryArray = Object.values(employeeSummary);
-  summaryText.textContent = `បង្ហាញ ${toKhmerNumber(
-    summaryArray.length
-  )} នាក់`;
+  summaryText.textContent = `បង្ហាញ ${toKhmerNumber(summaryArray.length)} នាក់`;
 
   const startIndex = (currentPage - 1) * cardsPerPage;
   const endIndex = startIndex + cardsPerPage;
@@ -1116,13 +1109,17 @@ function renderCombinedView(filteredData) {
                      <div class="flex-1 min-w-[70px] text-xs font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded-lg border border-blue-100 text-center whitespace-nowrap">
                         ចេញ: ${toKhmerNumber(summary.infoCount)}
                      </div>
-                     ${ isNumericId ? `
+                     ${
+                       isNumericId
+                         ? `
                      <div class="flex-1 min-w-[70px] text-xs font-bold bg-green-50 text-green-600 px-2 py-1 rounded-lg border border-green-100 text-center whitespace-nowrap">
                         សម្រាក: ${toKhmerNumber(summary.leaveCount)}
                      </div>
                      <div class="flex-1 min-w-[70px] text-xs font-bold bg-purple-50 text-purple-600 px-2 py-1 rounded-lg border border-purple-100 text-center whitespace-nowrap">
                         ទៅផ្ទះ: ${toKhmerNumber(summary.homeCount)}
-                     </div>` : '' }
+                     </div>`
+                         : ""
+                     }
                 </div>
             </div>
             
@@ -1137,9 +1134,7 @@ function renderCombinedView(filteredData) {
 }
 
 function renderPagination(totalItems) {
-  const paginationContainer = document.getElementById(
-    "pagination-container"
-  );
+  const paginationContainer = document.getElementById("pagination-container");
   paginationContainer.innerHTML = "";
   const totalPages = Math.ceil(totalItems / cardsPerPage);
   if (totalPages <= 1) return;
@@ -1208,6 +1203,12 @@ function populateDateFilters() {
 function switchTab(tabName) {
   currentTab = tabName;
   currentPage = 1;
+  // --- បន្ថែមថ្មី៖ លុបអក្សរក្នុងប្រអប់ស្វែងរកពេលប្តូរ Tab ---
+  const searchInput = document.getElementById("searchInput");
+  if (searchInput) {
+    searchInput.value = ""; // លុបអក្សរចោល
+  }
+  // -----------------------------------------------------
   render();
 }
 
@@ -1269,10 +1270,7 @@ function checkNotReturnedStatus() {
       itemDate.getMonth() + 1 == now.getMonth() + 1
     );
   });
-  notReturnedBadge.classList.toggle(
-    "hidden",
-    notReturnedList.length === 0
-  );
+  notReturnedBadge.classList.toggle("hidden", notReturnedList.length === 0);
 }
 
 function checkApiKey() {
@@ -1324,9 +1322,10 @@ refreshButton.addEventListener("click", async () => {
 
 todayButton.addEventListener("click", () => {
   const now = new Date();
-  filterDate = `${now.getFullYear()}-${String(
-    now.getMonth() + 1
-  ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  filterDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(now.getDate()).padStart(2, "0")}`;
   startDateFilter.value = "";
   endDateFilter.value = "";
   searchInput.value = "";
@@ -1355,11 +1354,14 @@ navBtnHome.addEventListener("click", () => switchTab("home"));
 navBtnCombined.addEventListener("click", () => switchTab("combined"));
 navBtnSettings.addEventListener("click", () => switchTab("settings"));
 
+// --- ADD SEARCH LISTENER ---
+searchInput.addEventListener("input", () => {
+  currentPage = 1;
+  render();
+});
+
 modalContainer.addEventListener("click", (e) => {
-  if (
-    e.target === modalContainer ||
-    e.target.closest(".modal-close-btn")
-  ) {
+  if (e.target === modalContainer || e.target.closest(".modal-close-btn")) {
     hideModal();
   }
 });
