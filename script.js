@@ -87,6 +87,10 @@ function showError(message) {
   errorMessage.classList.remove("hidden");
   loader.classList.add("hidden");
   changeApiKeyButton.classList.toggle("hidden", !showChangeKeyButton);
+
+  // បើមាន Error ត្រូវបិទ Splash Screen ដើម្បីឱ្យឃើញសារ Error
+  const splashScreen = document.getElementById("app-splash-screen");
+  if (splashScreen) splashScreen.classList.add("hidden");
 }
 
 // --- Date Formatters ---
@@ -302,7 +306,7 @@ function exportData(type) {
                     .date-info { text-align: right; font-size: 12px; color: #64748b; margin-bottom: 10px; }
                     table { width: 100%; border-collapse: collapse; width: 100%; font-size: 12px; }
                     th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: middle; }
-                    th { background-color: #f1f5f9; color: #334155; font-weight: bold; border-bottom: 2px solid #cbd5e1; }
+                    th { background-color: #f1f1f9; color: #334155; font-weight: bold; border-bottom: 2px solid #cbd5e1; }
                     tr:nth-child(even) { background-color: #f8fafc; }
                     .badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; color: white; display: inline-block; min-width: 60px; text-align: center; }
                     .badge.info { background-color: #3b82f6; } 
@@ -380,39 +384,74 @@ function checkApiKey() {
     mainContent.classList.remove("hidden");
     init();
   } else {
+    // បិទ Splash Screen ភ្លាមៗបើមិនទាន់មាន API Key
+    const splashScreen = document.getElementById("app-splash-screen");
+    if (splashScreen) splashScreen.classList.add("hidden");
+
     apiKeySection.classList.remove("hidden");
     mainContent.classList.add("hidden");
   }
 }
 
+// === UPDATED INIT FUNCTION FOR SPLASH SCREEN ===
 async function init() {
-  loader.classList.remove("hidden");
+  // 1. បង្ហាញ Splash Screen (ប្រសិនបើវាត្រូវបានលាក់)
+  const splashScreen = document.getElementById("app-splash-screen");
+  if (splashScreen) splashScreen.classList.remove("hidden");
+
+  // លាក់ Loader ធម្មតា (ព្រោះយើងប្រើ Splash ជំនួស)
+  loader.classList.add("hidden");
   hideError();
   loadExportLibraries();
   updateSettingsIcon();
 
   dataContainer.innerHTML = "";
-  const [infoRows, leaveRows, homeRows, profileRows] = await Promise.all([
-    fetchSheetData(MAIN_SHEET_ID, RANGES.info),
-    fetchSheetData(MAIN_SHEET_ID, RANGES.leave),
-    fetchSheetData(HOME_SHEET_ID, RANGES.home),
-    fetchSheetData(PROFILE_SHEET_ID, RANGES.profiles, "FORMULA"),
-  ]);
 
-  if (profileRows) profileData = parseProfileData(profileRows);
-  if (infoRows) allData.info = parseInfoData(infoRows);
-  if (leaveRows) allData.leave = parseLeaveData(leaveRows);
-  if (homeRows) allData.home = parseHomeData(homeRows);
+  try {
+    // 2. ចាប់ផ្តើមទាញទិន្នន័យ (រង់ចាំទាល់តែចប់)
+    const [infoRows, leaveRows, homeRows, profileRows] = await Promise.all([
+      fetchSheetData(MAIN_SHEET_ID, RANGES.info),
+      fetchSheetData(MAIN_SHEET_ID, RANGES.leave),
+      fetchSheetData(HOME_SHEET_ID, RANGES.home),
+      fetchSheetData(PROFILE_SHEET_ID, RANGES.profiles, "FORMULA"),
+    ]);
 
-  combineAndSortData();
-  loader.classList.add("hidden");
+    // 3. ដំណើរការទិន្នន័យ
+    if (profileRows) profileData = parseProfileData(profileRows);
+    if (infoRows) allData.info = parseInfoData(infoRows);
+    if (leaveRows) allData.leave = parseLeaveData(leaveRows);
+    if (homeRows) allData.home = parseHomeData(homeRows);
 
-  const savedTheme = localStorage.getItem("appTheme");
-  if (savedTheme) setTheme(savedTheme);
-  else renderThemeSelector("blue");
+    combineAndSortData();
 
-  if (currentTab === "settings") render();
-  else switchTab(currentTab);
+    // 4. ការកំណត់ Theme
+    const savedTheme = localStorage.getItem("appTheme");
+    if (savedTheme) setTheme(savedTheme);
+    else renderThemeSelector("blue");
+
+    // 5. បង្ហាញទិន្នន័យចូលក្នុង App
+    if (currentTab === "settings") render();
+    else switchTab(currentTab);
+
+    // ============================================
+    // 6. ពិសេស: បិទ Splash Screen នៅពេលទិន្នន័យរួចរាល់ 100%
+    // ============================================
+    if (splashScreen) {
+      // បន្ថែម Style ដើម្បីធ្វើឱ្យវាស្រអាប់បាត់ (Fade out)
+      splashScreen.style.opacity = "0";
+      splashScreen.style.pointerEvents = "none";
+
+      // រង់ចាំ 0.7 វិនាទី (ស្មើនឹង duration-700 ក្នុង CSS) រួចលាក់វាចោល
+      setTimeout(() => {
+        splashScreen.classList.add("hidden");
+      }, 700);
+    }
+  } catch (error) {
+    console.error("Error during init:", error);
+    showError("មានបញ្ហាក្នុងការទាញទិន្នន័យ សូមព្យាយាមម្តងទៀត។");
+    // បើមាន Error ក៏ត្រូវបិទ Splash ដែរ ដើម្បីឱ្យគេឃើញសារ Error
+    if (splashScreen) splashScreen.classList.add("hidden");
+  }
 }
 
 function combineAndSortData() {
