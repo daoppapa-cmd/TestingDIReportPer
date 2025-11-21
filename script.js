@@ -654,11 +654,11 @@ function renderStandardView(filteredData) {
   const startIndex = (currentPage - 1) * cardsPerPage;
   const endIndex = startIndex + cardsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
-  summaryText.textContent = `បង្ហាញ ${toKhmerNumber(
-    paginatedData.length
-  )} នៃ ${toKhmerNumber(filteredData.length)}`;
+  
+  // លុបអក្សរ Summary ចោលសម្រាប់ Page ធម្មតា
+  summaryText.textContent = "";
 
-  // Check Screen Size
+  // ពិនិត្យមើលទំហំអេក្រង់
   const isDesktop = window.innerWidth >= 1024;
 
   if (filteredData.length === 0) {
@@ -674,7 +674,7 @@ function renderStandardView(filteredData) {
       ).charAt(0)}`;
       const card = document.createElement("div");
 
-      // Variables
+      // កំណត់ variables រួម
       const isInfo = item.type === "info";
       const borderColor = isInfo ? "border-blue-100" : "border-green-100";
       const nameColor = isInfo ? "text-blue-700" : "text-green-700";
@@ -682,24 +682,17 @@ function renderStandardView(filteredData) {
         ? "bg-blue-50 text-blue-700 border-blue-100"
         : "bg-green-50 text-green-700 border-green-100";
       const imageBorder = isInfo ? "border-blue-200" : "border-green-200";
-
-      // Date & Duration Logic
+      
       const startDate = item.type === "home" ? item.dateOut : item.date;
       const endDate = item.type === "home" ? item.dateIn : item.dateEnd;
       const singleDayKeywords = ["មួយព្រឹក", "មួយរសៀល", "ពេលយប់", "មួយថ្ងៃ"];
-      const isSingleDay =
-        !item.duration ||
-        singleDayKeywords.some((k) => (item.duration || "").includes(k));
-
+      const isSingleDay = !item.duration || singleDayKeywords.some((k) => (item.duration || "").includes(k));
+      
       let dateDisplay = "";
-      if (isSingleDay || !endDate) {
-        dateDisplay = `<span>កាលបរិច្ឆេទ: ${formatDateToKhmer(
-          startDate
-        )}</span>`;
+      if(isSingleDay || !endDate) {
+          dateDisplay = `<span>កាលបរិច្ឆេទ: ${formatDateToKhmer(startDate)}</span>`;
       } else {
-        dateDisplay = `<span>${formatDateToKhmer(
-          startDate
-        )} - ${formatDateToKhmer(endDate)}</span>`;
+          dateDisplay = `<span>${formatDateToKhmer(startDate)} - ${formatDateToKhmer(endDate)}</span>`;
       }
 
       let durationDisplay = toKhmerNumber(item.duration);
@@ -711,90 +704,56 @@ function renderStandardView(filteredData) {
 
       // --- DESKTOP LAYOUT (Compact) ---
       if (isDesktop) {
-        card.className = `card bg-white p-3 rounded-xl shadow-sm border ${borderColor} flex flex-col gap-3 cursor-pointer hover:shadow-md transition-all duration-200 h-full relative overflow-hidden group`;
-
+        // ចំណាំ៖ ខ្ញុំបានដក 'cursor-pointer' ចេញ ដើម្បីកុំឱ្យគេច្រឡំថាចុចបាន
+        card.className = `card bg-white p-3 rounded-xl shadow-sm border ${borderColor} flex flex-col gap-3 hover:shadow-md transition-all duration-200 h-full relative overflow-hidden group`;
+        
         contentHTML = `
             <div class="flex items-start gap-3 relative">
                 <div class="flex-shrink-0">
-                    <img src="${
-                      profile.photo || placeholderImg
-                    }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-10 h-10 rounded-full object-cover border ${imageBorder} shadow-sm">
+                    <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-10 h-10 rounded-full object-cover border ${imageBorder} shadow-sm">
                 </div>
                 <div class="flex-grow min-w-0 pt-0.5">
                     <div class="flex justify-between items-start">
                          <div class="min-w-0 pr-1">
-                            <h3 class="font-bold text-sm ${nameColor} truncate leading-tight mb-0.5" title="${
-          item.name
-        }">${item.name || "គ្មានឈ្មោះ"}</h3>
-                            <p class="text-[10px] text-slate-400 font-mono">${toKhmerNumber(
-                              item.id
-                            )}</p>
+                            <h3 class="font-bold text-sm ${nameColor} truncate leading-tight mb-0.5" title="${item.name}">${item.name || "គ្មានឈ្មោះ"}</h3>
+                            <p class="text-[10px] text-slate-400 font-mono">${toKhmerNumber(item.id)}</p>
                          </div>
                          <span class="text-[9px] font-bold ${badgeBg} px-1.5 py-0.5 rounded border flex-shrink-0 whitespace-nowrap">${durationDisplay}</span>
                     </div>
-                    <p class="text-[10px] text-slate-500 truncate mt-1 font-medium">${
-                      profile.department || item.class || "គ្មានផ្នែក"
-                    }</p>
+                    <p class="text-[10px] text-slate-500 truncate mt-1 font-medium">${profile.department || item.class || "គ្មានផ្នែក"}</p>
                 </div>
             </div>
             <div class="border-t border-dashed border-slate-100 w-full"></div>
             <div class="space-y-1.5">
-                <p class="text-[11px] text-slate-600 truncate"><span class="text-slate-400 text-[10px]">មូលហេតុ:</span> ${
-                  item.reason || "N/A"
-                }</p>
+                <p class="text-[11px] text-slate-600 truncate"><span class="text-slate-400 text-[10px]">មូលហេតុ:</span> ${item.reason || "N/A"}</p>
                  <div class="flex justify-between items-center text-[10px] text-slate-500 font-medium bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                    ${
-                      isInfo
-                        ? `<span class="truncate">ចេញ: ${formatDateToKhmer(
-                            item.dateOut
-                          )}</span><span class="text-blue-600 font-bold bg-white px-1 rounded shadow-sm border border-slate-100">${toKhmerNumber(
-                            item.timeOut
-                          )}</span>`
-                        : dateDisplay
-                    }
+                    ${isInfo ? `<span class="truncate">ចេញ: ${formatDateToKhmer(item.dateOut)}</span><span class="text-blue-600 font-bold bg-white px-1 rounded shadow-sm border border-slate-100">${toKhmerNumber(item.timeOut)}</span>` : dateDisplay}
                 </div>
             </div>
         `;
-      }
+      } 
       // --- MOBILE/TABLET LAYOUT (Standard) ---
       else {
-        card.className = `card bg-white p-4 rounded-2xl shadow-sm border ${borderColor} flex flex-row gap-4 cursor-pointer hover:shadow-md transition-all duration-200 h-full items-start`;
-
+        // ចំណាំ៖ ខ្ញុំបានដក 'cursor-pointer' ចេញ
+        card.className = `card bg-white p-4 rounded-2xl shadow-sm border ${borderColor} flex flex-row gap-4 hover:shadow-md transition-all duration-200 h-full items-start`;
+        
         contentHTML = `
             <div class="flex-shrink-0">
-                <img src="${
-                  profile.photo || placeholderImg
-                }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 ${imageBorder} shadow-sm">
+                <img src="${profile.photo || placeholderImg}" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 ${imageBorder} shadow-sm">
             </div>
             <div class="flex-grow min-w-0">
                 <div class="flex justify-between items-start mb-1">
                     <div>
-                        <h3 class="font-bold text-base ${nameColor} truncate leading-tight">${
-          item.name || "គ្មានឈ្មោះ"
-        }</h3>
-                        <p class="text-xs text-slate-400 font-mono mt-0.5">${toKhmerNumber(
-                          item.id
-                        )}</p>
+                        <h3 class="font-bold text-base ${nameColor} truncate leading-tight">${item.name || "គ្មានឈ្មោះ"}</h3>
+                        <p class="text-xs text-slate-400 font-mono mt-0.5">${toKhmerNumber(item.id)}</p>
                     </div>
                     <span class="text-[10px] font-bold ${badgeBg} px-2.5 py-1 rounded-lg flex-shrink-0 whitespace-nowrap border border-opacity-20 border-current">${durationDisplay}</span>
                 </div>
-                <p class="text-xs text-slate-500 mb-2 truncate font-medium">${
-                  profile.department || item.class || "គ្មានផ្នែក"
-                }</p>
+                <p class="text-xs text-slate-500 mb-2 truncate font-medium">${profile.department || item.class || "គ្មានផ្នែក"}</p>
                 <div class="text-xs text-slate-600 border-t border-dashed border-slate-200 pt-2 mt-2">
-                    <p class="mb-1 truncate"><span class="text-slate-400">មូលហេតុ:</span> ${
-                      item.reason || "N/A"
-                    }</p>
+                    <p class="mb-1 truncate"><span class="text-slate-400">មូលហេតុ:</span> ${item.reason || "N/A"}</p>
                     <div class="flex justify-between text-xs text-slate-500 font-medium">
-                        ${
-                          isInfo
-                            ? `<span>ចេញ: ${formatDateToKhmer(
-                                item.dateOut
-                              )} <span class="text-blue-600">${toKhmerNumber(
-                                item.timeOut
-                              )}</span></span>`
-                            : dateDisplay
-                        }
+                        ${isInfo ? `<span>ចេញ: ${formatDateToKhmer(item.dateOut)} <span class="text-blue-600">${toKhmerNumber(item.timeOut)}</span></span>` : dateDisplay}
                     </div>
                 </div>
             </div>
@@ -803,7 +762,12 @@ function renderStandardView(filteredData) {
 
       card.style.animationDelay = `${index * 0.02}s`;
       card.innerHTML = contentHTML;
-      card.onclick = () => showModal(item, profile);
+      
+      // +++ កែប្រែសំខាន់នៅត្រង់នេះ +++
+      // ខ្ញុំបានលុបបន្ទាត់ card.onclick ចោល
+      // card.onclick = () => showModal(item, profile); 
+      // +++++++++++++++++++++++++++++
+
       dataContainer.appendChild(card);
     });
   }
