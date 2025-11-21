@@ -12,7 +12,7 @@ let touchStartX = 0;
 let touchEndX = 0;
 
 // --- SPEED OPTIMIZATION CONFIG (ការកំណត់ល្បឿន) ---
-const CACHE_DURATION = 1000 * 60 * 5; // រក្សាទុកទិន្នន័យ 5 នាទី (មិនទាញថ្មី)
+const CACHE_DURATION = 1000 * 60 * 5; // រក្សាទុកទិន្នន័យ 5 នាទី
 const ENABLE_CACHING = true; // បើកការចងចាំទិន្នន័យ
 
 // State for Modals
@@ -54,7 +54,10 @@ const endDateFilter = document.getElementById("endDateFilter");
 const applyFilterButton = document.getElementById("applyFilterButton");
 const modalContainer = document.getElementById("modal-container");
 const modalContent = document.getElementById("modal-content");
-const refreshButton = document.getElementById("refreshButton");
+
+// UPDATED: Refresh button is now the one inside search bar
+const refreshButton = document.getElementById("searchRefreshBtn");
+
 const summaryButton = document.getElementById("summaryButton");
 const notReturnedButton = document.getElementById("notReturnedButton");
 const notReturnedBadge = document.getElementById("notReturnedBadge");
@@ -91,6 +94,7 @@ function showError(message) {
   loader.classList.add("hidden");
   changeApiKeyButton.classList.toggle("hidden", !showChangeKeyButton);
 
+  // បើមាន Error ត្រូវបិទ Splash Screen ដើម្បីឱ្យឃើញសារ Error
   const splashScreen = document.getElementById("app-splash-screen");
   if (splashScreen) splashScreen.classList.add("hidden");
 }
@@ -348,28 +352,27 @@ function exportData(type) {
 window.exportData = exportData;
 
 // ==========================================
-// 4. MAIN APP LOGIC (OPTIMIZED WITH CACHING)
+// 4. MAIN APP LOGIC (OPTIMIZED)
 // ==========================================
 
 async function fetchSheetData(
   spreadsheetId,
   range,
   valueRenderOption = "FORMATTED_VALUE",
-  forceRefresh = false // New Parameter
+  forceRefresh = false
 ) {
   if (!GOOGLE_API_KEY) {
     showError("សូមបញ្ចូល API Key ជាមុនសិន។");
     return null;
   }
 
-  // --- CACHING LOGIC START ---
+  // --- CACHING LOGIC ---
   const cacheKey = `sheet_data_${spreadsheetId}_${range}`;
   if (ENABLE_CACHING && !forceRefresh) {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
         const { timestamp, data } = JSON.parse(cached);
-        // Check if cache is valid (less than CACHE_DURATION)
         if (Date.now() - timestamp < CACHE_DURATION) {
           console.log(`Loaded from cache: ${range}`);
           return data;
@@ -379,7 +382,6 @@ async function fetchSheetData(
       }
     }
   }
-  // --- CACHING LOGIC END ---
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueRenderOption=${valueRenderOption}&key=${GOOGLE_API_KEY}`;
   try {
@@ -416,6 +418,7 @@ function checkApiKey() {
     mainContent.classList.remove("hidden");
     init();
   } else {
+    // បិទ Splash Screen ភ្លាមៗបើមិនទាន់មាន API Key
     const splashScreen = document.getElementById("app-splash-screen");
     if (splashScreen) splashScreen.classList.add("hidden");
 
@@ -424,10 +427,9 @@ function checkApiKey() {
   }
 }
 
-// Updated init to accept forceRefresh
 async function init(forceRefresh = false) {
   const splashScreen = document.getElementById("app-splash-screen");
-  // Only show splash screen on initial load (not on background refresh)
+  // Only show splash screen on initial load
   if (splashScreen && !forceRefresh) splashScreen.classList.remove("hidden");
 
   loader.classList.add("hidden");
@@ -440,7 +442,6 @@ async function init(forceRefresh = false) {
   }
 
   try {
-    // Pass forceRefresh to fetchSheetData
     const [infoRows, leaveRows, homeRows, profileRows] = await Promise.all([
       fetchSheetData(
         MAIN_SHEET_ID,
@@ -482,6 +483,7 @@ async function init(forceRefresh = false) {
     if (currentTab === "settings") render();
     else switchTab(currentTab);
 
+    // Close Splash Screen with Animation
     if (splashScreen) {
       splashScreen.style.opacity = "0";
       splashScreen.style.pointerEvents = "none";
@@ -1501,16 +1503,18 @@ changeApiKeyButton.addEventListener("click", () => {
 });
 
 // REFRESH BUTTON: Forces new data
-refreshButton.addEventListener("click", async () => {
-  const icon = refreshButton.querySelector("svg");
-  icon.classList.add("spinning");
-  refreshButton.disabled = true;
-  await init(true); // Pass true to force refresh
-  setTimeout(() => {
-    icon.classList.remove("spinning");
-    refreshButton.disabled = false;
-  }, 500);
-});
+if (refreshButton) {
+  refreshButton.addEventListener("click", async () => {
+    const icon = refreshButton.querySelector("svg");
+    if (icon) icon.classList.add("spinning");
+    refreshButton.disabled = true;
+    await init(true); // Pass true to force refresh
+    setTimeout(() => {
+      if (icon) icon.classList.remove("spinning");
+      refreshButton.disabled = false;
+    }, 500);
+  });
+}
 
 todayButton.addEventListener("click", () => {
   const now = new Date();
