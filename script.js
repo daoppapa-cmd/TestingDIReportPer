@@ -6,10 +6,14 @@ let allData = { info: [], leave: [], home: [], combined: [] };
 let profileData = {};
 let currentTab = "info";
 let currentPage = 1;
-let cardsPerPage = 24; // បង្ហាញ 24 កាតក្នុងមួយទំព័រ
+let cardsPerPage = 24;
 let filterDate = null;
 let touchStartX = 0;
 let touchEndX = 0;
+
+// --- SPEED OPTIMIZATION CONFIG (ការកំណត់ល្បឿន) ---
+const CACHE_DURATION = 1000 * 60 * 5; // រក្សាទុកទិន្នន័យ 5 នាទី (មិនទាញថ្មី)
+const ENABLE_CACHING = true; // បើកការចងចាំទិន្នន័យ
 
 // State for Modals
 let notReturnedType = "info";
@@ -61,7 +65,6 @@ const changeApiKeyButton = document.getElementById("changeApiKeyButton");
 // 3. HELPER FUNCTIONS
 // ==========================================
 
-// --- UI Helpers ---
 function hideModal() {
   modalContainer.classList.add("hidden");
   modalContainer.classList.remove("flex");
@@ -88,12 +91,10 @@ function showError(message) {
   loader.classList.add("hidden");
   changeApiKeyButton.classList.toggle("hidden", !showChangeKeyButton);
 
-  // បើមាន Error ត្រូវបិទ Splash Screen ដើម្បីឱ្យឃើញសារ Error
   const splashScreen = document.getElementById("app-splash-screen");
   if (splashScreen) splashScreen.classList.add("hidden");
 }
 
-// --- Date Formatters ---
 const KHMER_MONTHS = [
   "មករា",
   "កុម្ភៈ",
@@ -129,7 +130,6 @@ function formatDateToKhmer(dateStr) {
   return `${day}-${month}-${year}`;
 }
 
-// --- Theme ---
 function setTheme(themeName) {
   const theme = themes[themeName] || themes.blue;
   const root = document.documentElement;
@@ -166,7 +166,6 @@ function loadExportLibraries() {
   }
 }
 
-// --- EXPORT DATA PREPARATION ---
 function getExportData() {
   const exportType = document.getElementById("exportTypeSelector")
     ? document.getElementById("exportTypeSelector").value
@@ -349,23 +348,56 @@ function exportData(type) {
 window.exportData = exportData;
 
 // ==========================================
-// 4. MAIN APP LOGIC
+// 4. MAIN APP LOGIC (OPTIMIZED WITH CACHING)
 // ==========================================
 
 async function fetchSheetData(
   spreadsheetId,
   range,
-  valueRenderOption = "FORMATTED_VALUE"
+  valueRenderOption = "FORMATTED_VALUE",
+  forceRefresh = false // New Parameter
 ) {
   if (!GOOGLE_API_KEY) {
     showError("សូមបញ្ចូល API Key ជាមុនសិន។");
     return null;
   }
+
+  // --- CACHING LOGIC START ---
+  const cacheKey = `sheet_data_${spreadsheetId}_${range}`;
+  if (ENABLE_CACHING && !forceRefresh) {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { timestamp, data } = JSON.parse(cached);
+        // Check if cache is valid (less than CACHE_DURATION)
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          console.log(`Loaded from cache: ${range}`);
+          return data;
+        }
+      } catch (e) {
+        console.warn("Cache parsing error, fetching fresh data.");
+      }
+    }
+  }
+  // --- CACHING LOGIC END ---
+
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueRenderOption=${valueRenderOption}&key=${GOOGLE_API_KEY}`;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error(response.statusText);
     const data = await response.json();
+
+    // Save to Cache
+    if (ENABLE_CACHING && data.values) {
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          timestamp: Date.now(),
+          data: data.values,
+        })
+      );
+    }
+
     return data.values || [];
   } catch (error) {
     console.error("Fetch error:", error);
@@ -384,7 +416,6 @@ function checkApiKey() {
     mainContent.classList.remove("hidden");
     init();
   } else {
-    // បិទ Splash Screen ភ្លាមៗបើមិនទាន់មាន API Key
     const splashScreen = document.getElementById("app-splash-screen");
     if (splashScreen) splashScreen.classList.add("hidden");
 
@@ -393,30 +424,50 @@ function checkApiKey() {
   }
 }
 
-// === UPDATED INIT FUNCTION FOR SPLASH SCREEN ===
-async function init() {
-  // 1. បង្ហាញ Splash Screen (ប្រសិនបើវាត្រូវបានលាក់)
+// Updated init to accept forceRefresh
+async function init(forceRefresh = false) {
   const splashScreen = document.getElementById("app-splash-screen");
-  if (splashScreen) splashScreen.classList.remove("hidden");
+  // Only show splash screen on initial load (not on background refresh)
+  if (splashScreen && !forceRefresh) splashScreen.classList.remove("hidden");
 
-  // លាក់ Loader ធម្មតា (ព្រោះយើងប្រើ Splash ជំនួស)
   loader.classList.add("hidden");
   hideError();
   loadExportLibraries();
   updateSettingsIcon();
 
-  dataContainer.innerHTML = "";
+  if (forceRefresh) {
+    dataContainer.innerHTML = ""; // Clear only on forced refresh
+  }
 
   try {
-    // 2. ចាប់ផ្តើមទាញទិន្នន័យ (រង់ចាំទាល់តែចប់)
+    // Pass forceRefresh to fetchSheetData
     const [infoRows, leaveRows, homeRows, profileRows] = await Promise.all([
-      fetchSheetData(MAIN_SHEET_ID, RANGES.info),
-      fetchSheetData(MAIN_SHEET_ID, RANGES.leave),
-      fetchSheetData(HOME_SHEET_ID, RANGES.home),
-      fetchSheetData(PROFILE_SHEET_ID, RANGES.profiles, "FORMULA"),
+      fetchSheetData(
+        MAIN_SHEET_ID,
+        RANGES.info,
+        "FORMATTED_VALUE",
+        forceRefresh
+      ),
+      fetchSheetData(
+        MAIN_SHEET_ID,
+        RANGES.leave,
+        "FORMATTED_VALUE",
+        forceRefresh
+      ),
+      fetchSheetData(
+        HOME_SHEET_ID,
+        RANGES.home,
+        "FORMATTED_VALUE",
+        forceRefresh
+      ),
+      fetchSheetData(
+        PROFILE_SHEET_ID,
+        RANGES.profiles,
+        "FORMULA",
+        forceRefresh
+      ),
     ]);
 
-    // 3. ដំណើរការទិន្នន័យ
     if (profileRows) profileData = parseProfileData(profileRows);
     if (infoRows) allData.info = parseInfoData(infoRows);
     if (leaveRows) allData.leave = parseLeaveData(leaveRows);
@@ -424,24 +475,16 @@ async function init() {
 
     combineAndSortData();
 
-    // 4. ការកំណត់ Theme
     const savedTheme = localStorage.getItem("appTheme");
     if (savedTheme) setTheme(savedTheme);
     else renderThemeSelector("blue");
 
-    // 5. បង្ហាញទិន្នន័យចូលក្នុង App
     if (currentTab === "settings") render();
     else switchTab(currentTab);
 
-    // ============================================
-    // 6. ពិសេស: បិទ Splash Screen នៅពេលទិន្នន័យរួចរាល់ 100%
-    // ============================================
     if (splashScreen) {
-      // បន្ថែម Style ដើម្បីធ្វើឱ្យវាស្រអាប់បាត់ (Fade out)
       splashScreen.style.opacity = "0";
       splashScreen.style.pointerEvents = "none";
-
-      // រង់ចាំ 0.7 វិនាទី (ស្មើនឹង duration-700 ក្នុង CSS) រួចលាក់វាចោល
       setTimeout(() => {
         splashScreen.classList.add("hidden");
       }, 700);
@@ -449,7 +492,6 @@ async function init() {
   } catch (error) {
     console.error("Error during init:", error);
     showError("មានបញ្ហាក្នុងការទាញទិន្នន័យ សូមព្យាយាមម្តងទៀត។");
-    // បើមាន Error ក៏ត្រូវបិទ Splash ដែរ ដើម្បីឱ្យគេឃើញសារ Error
     if (splashScreen) splashScreen.classList.add("hidden");
   }
 }
@@ -518,7 +560,6 @@ function getFilteredData() {
         itemDate.getMonth() + 1 == selectedMonth;
     }
 
-    // ID Check for standard view
     const isNumericId = /^\d+$/.test(item.id.trim());
     if ((item.type === "leave" || item.type === "home") && !isNumericId) {
       return false;
@@ -615,6 +656,9 @@ function renderStandardView(filteredData) {
     paginatedData.length
   )} នៃ ${toKhmerNumber(filteredData.length)}`;
 
+  // Check Screen Size
+  const isDesktop = window.innerWidth >= 1024;
+
   if (filteredData.length === 0) {
     dataContainer.innerHTML = `<div class="col-span-full text-center p-10 bg-white rounded-2xl shadow-sm border border-dashed border-slate-200"><p class="text-slate-500 font-medium">រកមិនឃើញទិន្នន័យទេ។</p></div>`;
   } else {
@@ -627,58 +671,137 @@ function renderStandardView(filteredData) {
         item.name || "?"
       ).charAt(0)}`;
       const card = document.createElement("div");
+
+      // Variables
       const isInfo = item.type === "info";
       const borderColor = isInfo ? "border-blue-100" : "border-green-100";
       const nameColor = isInfo ? "text-blue-700" : "text-green-700";
       const badgeBg = isInfo
-        ? "bg-blue-100 text-blue-700"
-        : "bg-green-100 text-green-700";
+        ? "bg-blue-50 text-blue-700 border-blue-100"
+        : "bg-green-50 text-green-700 border-green-100";
       const imageBorder = isInfo ? "border-blue-200" : "border-green-200";
-      card.className = `card bg-white p-4 rounded-2xl shadow-sm border ${borderColor} flex flex-row gap-4 cursor-pointer hover:shadow-md transition-all duration-200 h-full items-start`;
-      card.style.animationDelay = `${index * 0.03}s`;
 
+      // Date & Duration Logic
       const startDate = item.type === "home" ? item.dateOut : item.date;
       const endDate = item.type === "home" ? item.dateIn : item.dateEnd;
       const singleDayKeywords = ["មួយព្រឹក", "មួយរសៀល", "ពេលយប់", "មួយថ្ងៃ"];
       const isSingleDay =
         !item.duration ||
         singleDayKeywords.some((k) => (item.duration || "").includes(k));
-      const dateDisplay =
-        isSingleDay || !endDate
-          ? `<span>កាលបរិច្ឆេទ: ${formatDateToKhmer(startDate)}</span>`
-          : `<span>${formatDateToKhmer(startDate)} - ${formatDateToKhmer(
-              endDate
-            )}</span>`;
+
+      let dateDisplay = "";
+      if (isSingleDay || !endDate) {
+        dateDisplay = `<span>កាលបរិច្ឆេទ: ${formatDateToKhmer(
+          startDate
+        )}</span>`;
+      } else {
+        dateDisplay = `<span>${formatDateToKhmer(
+          startDate
+        )} - ${formatDateToKhmer(endDate)}</span>`;
+      }
 
       let durationDisplay = toKhmerNumber(item.duration);
       if (item.type === "home" && item.duration) {
         durationDisplay += " ថ្ងៃ";
       }
 
-      let contentHTML = `
-            <div class="flex-shrink-0"><img src="${
-              profile.photo || placeholderImg
-            }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 ${imageBorder} shadow-sm"></div>
-            <div class="flex-grow min-w-0"><div class="flex justify-between items-start mb-1"><div><h3 class="font-bold text-base ${nameColor} truncate leading-tight">${
-        item.name || "គ្មានឈ្មោះ"
-      }</h3><p class="text-xs text-slate-400 font-mono mt-0.5">${toKhmerNumber(
-        item.id
-      )}</p></div><span class="text-[10px] font-bold ${badgeBg} px-2.5 py-1 rounded-lg flex-shrink-0 whitespace-nowrap border border-opacity-20 border-current">${durationDisplay}</span></div><p class="text-xs text-slate-500 mb-2 truncate font-medium">${
-        profile.department || item.class || "គ្មានផ្នែក"
-      }</p><div class="text-xs text-slate-600 border-t border-dashed border-slate-200 pt-2 mt-2"><p class="mb-1 truncate"><span class="text-slate-400">មូលហេតុ:</span> ${
-        item.reason || "N/A"
-      }</p>`;
+      let contentHTML = "";
 
-      if (isInfo) {
-        contentHTML += `<div class="flex justify-between text-xs text-slate-500 font-medium"><span>ចេញ: ${formatDateToKhmer(
-          item.dateOut
-        )} <span class="text-blue-600">${toKhmerNumber(
-          item.timeOut
-        )}</span></span></div></div></div>`;
-      } else {
-        contentHTML += `<div class="flex justify-between text-xs text-slate-500 font-medium">${dateDisplay}</div></div></div>`;
+      // --- DESKTOP LAYOUT (Compact) ---
+      if (isDesktop) {
+        card.className = `card bg-white p-3 rounded-xl shadow-sm border ${borderColor} flex flex-col gap-3 cursor-pointer hover:shadow-md transition-all duration-200 h-full relative overflow-hidden group`;
+
+        contentHTML = `
+            <div class="flex items-start gap-3 relative">
+                <div class="flex-shrink-0">
+                    <img src="${
+                      profile.photo || placeholderImg
+                    }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-10 h-10 rounded-full object-cover border ${imageBorder} shadow-sm">
+                </div>
+                <div class="flex-grow min-w-0 pt-0.5">
+                    <div class="flex justify-between items-start">
+                         <div class="min-w-0 pr-1">
+                            <h3 class="font-bold text-sm ${nameColor} truncate leading-tight mb-0.5" title="${
+          item.name
+        }">${item.name || "គ្មានឈ្មោះ"}</h3>
+                            <p class="text-[10px] text-slate-400 font-mono">${toKhmerNumber(
+                              item.id
+                            )}</p>
+                         </div>
+                         <span class="text-[9px] font-bold ${badgeBg} px-1.5 py-0.5 rounded border flex-shrink-0 whitespace-nowrap">${durationDisplay}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 truncate mt-1 font-medium">${
+                      profile.department || item.class || "គ្មានផ្នែក"
+                    }</p>
+                </div>
+            </div>
+            <div class="border-t border-dashed border-slate-100 w-full"></div>
+            <div class="space-y-1.5">
+                <p class="text-[11px] text-slate-600 truncate"><span class="text-slate-400 text-[10px]">មូលហេតុ:</span> ${
+                  item.reason || "N/A"
+                }</p>
+                 <div class="flex justify-between items-center text-[10px] text-slate-500 font-medium bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                    ${
+                      isInfo
+                        ? `<span class="truncate">ចេញ: ${formatDateToKhmer(
+                            item.dateOut
+                          )}</span><span class="text-blue-600 font-bold bg-white px-1 rounded shadow-sm border border-slate-100">${toKhmerNumber(
+                            item.timeOut
+                          )}</span>`
+                        : dateDisplay
+                    }
+                </div>
+            </div>
+        `;
       }
+      // --- MOBILE/TABLET LAYOUT (Standard) ---
+      else {
+        card.className = `card bg-white p-4 rounded-2xl shadow-sm border ${borderColor} flex flex-row gap-4 cursor-pointer hover:shadow-md transition-all duration-200 h-full items-start`;
+
+        contentHTML = `
+            <div class="flex-shrink-0">
+                <img src="${
+                  profile.photo || placeholderImg
+                }" onerror="this.onerror=null;this.src='${placeholderImg}';" class="w-14 h-14 rounded-full object-cover border-2 ${imageBorder} shadow-sm">
+            </div>
+            <div class="flex-grow min-w-0">
+                <div class="flex justify-between items-start mb-1">
+                    <div>
+                        <h3 class="font-bold text-base ${nameColor} truncate leading-tight">${
+          item.name || "គ្មានឈ្មោះ"
+        }</h3>
+                        <p class="text-xs text-slate-400 font-mono mt-0.5">${toKhmerNumber(
+                          item.id
+                        )}</p>
+                    </div>
+                    <span class="text-[10px] font-bold ${badgeBg} px-2.5 py-1 rounded-lg flex-shrink-0 whitespace-nowrap border border-opacity-20 border-current">${durationDisplay}</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-2 truncate font-medium">${
+                  profile.department || item.class || "គ្មានផ្នែក"
+                }</p>
+                <div class="text-xs text-slate-600 border-t border-dashed border-slate-200 pt-2 mt-2">
+                    <p class="mb-1 truncate"><span class="text-slate-400">មូលហេតុ:</span> ${
+                      item.reason || "N/A"
+                    }</p>
+                    <div class="flex justify-between text-xs text-slate-500 font-medium">
+                        ${
+                          isInfo
+                            ? `<span>ចេញ: ${formatDateToKhmer(
+                                item.dateOut
+                              )} <span class="text-blue-600">${toKhmerNumber(
+                                item.timeOut
+                              )}</span></span>`
+                            : dateDisplay
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+      }
+
+      card.style.animationDelay = `${index * 0.02}s`;
       card.innerHTML = contentHTML;
+      card.onclick = () => showModal(item, profile);
       dataContainer.appendChild(card);
     });
   }
@@ -1326,8 +1449,16 @@ function updateMobileNavState(tabName) {
 }
 
 function updateCardsPerPage() {
-  cardsPerPage = window.innerWidth >= 1024 ? 14 : 24;
+  const width = window.innerWidth;
+  if (width >= 1280) {
+    cardsPerPage = 50; // Desktop
+  } else if (width >= 768) {
+    cardsPerPage = 30; // Tablet
+  } else {
+    cardsPerPage = 24; // Mobile
+  }
 }
+
 function handleSwipeGesture() {
   if (currentTab === "settings") return;
   const swipeThreshold = 50;
@@ -1368,16 +1499,19 @@ changeApiKeyButton.addEventListener("click", () => {
   apiKeySection.classList.remove("hidden");
   apiKeyInput.value = "";
 });
+
+// REFRESH BUTTON: Forces new data
 refreshButton.addEventListener("click", async () => {
   const icon = refreshButton.querySelector("svg");
   icon.classList.add("spinning");
   refreshButton.disabled = true;
-  await init();
+  await init(true); // Pass true to force refresh
   setTimeout(() => {
     icon.classList.remove("spinning");
     refreshButton.disabled = false;
   }, 500);
 });
+
 todayButton.addEventListener("click", () => {
   const now = new Date();
   filterDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
