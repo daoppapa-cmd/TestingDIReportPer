@@ -29,6 +29,33 @@
             fontFamily: {
               sans: ["Kantumruy Pro", "sans-serif"],
             },
+            // --- ANIMATION CONFIGURATION ---
+            animation: {
+              "fade-in-up": "fadeInUp 0.8s ease-out forwards",
+              "logo-breath": "logoBreath 3s ease-in-out infinite", // Logo រីករួម
+              "text-shimmer": "textShimmer 3s linear infinite", // ឈ្មោះប្តូរពណ៌
+              "spin-slow": "spin 3s linear infinite", // រង្វង់វិលយឺតៗ
+            },
+            keyframes: {
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(20px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              logoBreath: {
+                "0%, 100%": {
+                  transform: "scale(1)",
+                  filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))",
+                },
+                "50%": {
+                  transform: "scale(1.15)",
+                  filter: "drop-shadow(0 15px 25px rgba(59, 130, 246, 0.4))",
+                },
+              },
+              textShimmer: {
+                "0%": { backgroundPosition: "0% 50%" },
+                "100%": { backgroundPosition: "200% 50%" },
+              },
+            },
           },
         },
       };
@@ -152,9 +179,106 @@
         --tw-ring-opacity: 1;
         ring-color: rgb(var(--color-primary-600));
       }
+
+      /* Splash Screen Transition */
+      #app-splash-screen {
+        transition: opacity 0.7s ease-out, visibility 0.7s ease-out;
+      }
     </style>
   </head>
   <body class="antialiased text-slate-800 pb-24 md:pb-0">
+    <div
+      id="app-splash-screen"
+      class="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center"
+    >
+      <div class="relative flex flex-col items-center w-full px-6">
+        <div class="relative mb-10 group">
+          <div
+            class="absolute inset-0 bg-gradient-to-tr from-blue-200 to-purple-200 rounded-full blur-2xl opacity-50 animate-spin-slow"
+          ></div>
+          <img
+            src="https://i.postimg.cc/tT0XCH38/di3-copy.png"
+            alt="Logo"
+            class="h-28 w-auto relative z-10 animate-logo-breath"
+          />
+        </div>
+
+        <div
+          class="text-center animate-fade-in-up"
+          style="
+            animation-delay: 0.1s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+          "
+        >
+          <h1
+            class="text-2xl md:text-3xl font-bold text-primary-700 tracking-tight mb-2 drop-shadow-sm"
+          >
+            ប្រព័ន្ធពិនិត្យរបាយការណ៍ច្បាប់
+          </h1>
+          <p
+            class="text-slate-500 font-medium text-sm tracking-[0.3em] uppercase mb-12 border-b border-slate-100 pb-2 inline-block"
+          >
+            ទិន្នន័យច្បាប់ ឧស្សាហកម្មឌីជីថល
+          </p>
+        </div>
+
+        <div
+          class="w-full max-w-xs bg-white rounded-2xl p-1 mb-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-fade-in-up"
+          style="
+            animation-delay: 0.3s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+          "
+        >
+          <div
+            class="bg-slate-50/80 rounded-xl px-6 py-5 text-center border border-slate-100/50 backdrop-blur-sm"
+          >
+            <p
+              class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2"
+            >
+              អ្នកត្រួតពិនិត្យ
+            </p>
+            <div class="flex items-center justify-center gap-2">
+              <span
+                class="w-2 h-2 bg-green-500 rounded-full animate-ping"
+              ></span>
+
+              <p
+                class="text-xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] bg-clip-text text-transparent animate-text-shimmer"
+              >
+                លោកគ្រូ ពៅ ដារ៉ូ
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="flex flex-col items-center gap-4 animate-fade-in-up"
+          style="
+            animation-delay: 0.5s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+          "
+        >
+          <div class="relative w-12 h-12">
+            <div
+              class="absolute top-0 left-0 w-full h-full border-[3px] border-slate-100 rounded-full"
+            ></div>
+            <div
+              class="absolute top-0 left-0 w-full h-full border-[3px] border-primary-500 rounded-full border-t-transparent animate-spin"
+            ></div>
+          </div>
+          <p class="text-xs text-slate-400 font-mono animate-pulse">
+            កំពុងទាញទិន្នន័យ...
+          </p>
+        </div>
+      </div>
+
+      <div class="absolute bottom-6 text-[10px] text-slate-300">
+        Version 1.0.0
+      </div>
+    </div>
     <div class="container mx-auto px-4 pt-4 max-w-6xl">
       <header class="text-center mb-6 flex flex-col items-center">
         <div class="relative">
